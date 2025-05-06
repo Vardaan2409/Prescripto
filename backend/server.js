@@ -8,8 +8,6 @@ import doctorRouter from "./routes/doctorRoute.js";
 import userRouter from "./routes/userRoute.js";
 import mongoose from 'mongoose';
 
-dotenv.config();
-
 //app config
 const app = express();
 const port = process.env.PORT || 5000;

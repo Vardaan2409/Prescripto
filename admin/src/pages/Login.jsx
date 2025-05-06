@@ -42,6 +42,7 @@ const Login = () => {
       }
 
     } catch (error) {
+      console.log(error.response?.data || error.message);
       toast.error("An error occurred during login."); // Catch and display error
     } finally {
       setLoading(false);

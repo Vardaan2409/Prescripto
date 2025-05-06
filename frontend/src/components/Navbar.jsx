@@ -2,18 +2,30 @@ import React, { useContext, useState } from "react";
 import { assets } from "../assets/assets";
 import { NavLink, useNavigate } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
+import { toast } from "react-toastify";
 
 const Navbar = () => {
 
     const navigate = useNavigate();
 
-    const {token, setToken, userData} = useContext(AppContext);
+    const {token, setToken, userData, setUserData} = useContext(AppContext);
 
     const [showMenu, setShowMenu] = useState(false);
 
     const logout = () => {
-        setToken(false);
-        localStorage.removeItem("token")
+        try {
+            // Clear all auth-related data
+            localStorage.removeItem("token");
+            setToken(false);
+            setUserData(false);
+            // Navigate to home page
+            navigate("/");
+            // Show success message
+            toast.success("Logged out successfully");
+        } catch (error) {
+            console.error("Logout error:", error);
+            toast.error("Error during logout. Please try again.");
+        }
     }
 
     return (

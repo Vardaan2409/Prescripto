@@ -83,24 +83,28 @@ const Appointments = () => {
   }
 
   const bookAppointment = async () => {
-
     if (!token) {
       toast.warn("Login to book appointment");
       return navigate("/login");
     }
 
+    if (!slotTime) {
+      toast.warn("Please select a time slot");
+      return;
+    }
+
     try {
-
       const date = docSlots[slotIndex][0].dateTime;
-
       let day = date.getDate();
       let month = date.getMonth() + 1;
       let year = date.getFullYear();
-
       const slotDate = day + "_" + month + "_" + year;
 
-      //console.log(slotDate);
-      const { data } = await axios.post(backendUrl + '/api/user/book-appointment', { docId, slotDate, slotTime }, { headers: { token } });
+      const { data } = await axios.post(
+        backendUrl + '/api/user/book-appointment', 
+        { docId, slotDate, slotTime }, 
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       if (data.success) {
         toast.success(data.message);
@@ -109,10 +113,9 @@ const Appointments = () => {
       } else {
         toast.error(data.message);
       }
-
     } catch (error) {
       console.log(error);
-      toast.error(data.message);
+      toast.error(error.response?.data?.message || "Failed to book appointment");
     }
   }
 

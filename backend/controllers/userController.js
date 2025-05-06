@@ -7,6 +7,32 @@ import doctorModel from "../models/doctorModel.js";
 import appointmentModel from "../models/appointmentModel.js";
 import razorpay from "razorpay";
 
+// Initialize Razorpay instance with error handling
+let razorpayInstance;
+try {
+    console.log("=== Initializing Razorpay ===");
+    console.log("Key ID:", process.env.RAZORPAY_KEY_ID);
+    console.log("Key Secret present:", !!process.env.RAZORPAY_KEY_SECRET);
+    
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        throw new Error("Razorpay credentials not found in environment variables");
+    }
+
+    if (!process.env.RAZORPAY_KEY_ID.startsWith('rzp_test_')) {
+        throw new Error("Invalid Razorpay key ID. Must use test key for development");
+    }
+    
+    razorpayInstance = new razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET
+    });
+    console.log("Razorpay initialized successfully");
+} catch (error) {
+    console.error("=== Razorpay Initialization Error ===");
+    console.error("Error message:", error.message);
+    console.error("Full error:", error);
+}
+
 //api to register users
 const registerUser = async (req, res) => {
     try {
@@ -69,7 +95,7 @@ const loginUser = async (req, res) => {
             const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
             res.json({ success: true, token });
         } else {
-            res.json({ success: false, message: "Inavlid credentials" });
+            res.json({ success: false, message: "Invalid credentials" });
         }
 
     } catch (error) {
@@ -254,59 +280,141 @@ const cancelAppointment = async (req, res) => {
     }
 }
 
-const razorpayInstance = new razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET
-})
-
 //API to make payment of appointment using razorpay
 const paymentRazorpay = async (req, res) => {
-
+    console.log("=== Payment Initiation Request ===");
+    console.log("Request body:", req.body);
+    
     try {
+        if (!razorpayInstance) {
+            console.error("Razorpay instance not initialized");
+            return res.status(500).json({ 
+                success: false, 
+                message: "Payment gateway not initialized" 
+            });
+        }
 
         const { appointmentId } = req.body;
-        const appointmentData = await appointmentModel.findById(appointmentId);
+        console.log("Creating payment for appointment:", appointmentId);
 
-        if (!appointmentData || appointmentData.cancelled) {
-            return res.json({ success: false, message: "Appointment cancelled or not found" });
+        const appointmentData = await appointmentModel.findById(appointmentId);
+        console.log("Appointment data:", appointmentData);
+
+        if (!appointmentData) {
+            console.error("Appointment not found:", appointmentId);
+            return res.status(404).json({ 
+                success: false, 
+                message: "Appointment not found" 
+            });
+        }
+
+        if (appointmentData.cancelled) {
+            console.error("Appointment is cancelled:", appointmentId);
+            return res.status(400).json({ 
+                success: false, 
+                message: "Cannot process payment for cancelled appointment" 
+            });
+        }
+
+        if (appointmentData.payment) {
+            console.error("Payment already completed for appointment:", appointmentId);
+            return res.status(400).json({ 
+                success: false, 
+                message: "Payment already completed" 
+            });
+        }
+
+        // Validate amount
+        if (!appointmentData.amount || appointmentData.amount <= 0) {
+            console.error("Invalid amount:", appointmentData.amount);
+            return res.status(400).json({ 
+                success: false, 
+                message: "Invalid appointment amount" 
+            });
         }
 
         //creating options for razorpay payment
         const options = {
-            amount: appointmentData.amount * 100,
-            currency: process.env.CURRENCY,
+            amount: Math.round(appointmentData.amount * 100), // Convert to paise and ensure it's an integer
+            currency: process.env.CURRENCY || 'INR',
             receipt: appointmentId,
+            notes: {
+                appointmentId: appointmentId,
+                doctorName: appointmentData.docData.name,
+                patientName: appointmentData.userData.name
+            },
+            payment_capture: 1
         }
+
+        console.log("Creating Razorpay order with options:", options);
 
         //creation of an order
         const order = await razorpayInstance.orders.create(options);
+        console.log("Razorpay order created successfully:", order);
 
-        res.json({ success: true, order });
+        res.json({ 
+            success: true, 
+            order: {
+                ...order,
+                currency: options.currency // Ensure currency is passed to frontend
+            }
+        });
 
     } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
+        console.error("=== Payment Initiation Error ===");
+        console.error("Error message:", error.message);
+        console.error("Error details:", error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || "Failed to initiate payment" 
+        });
     }
 }
 
 //API to verify payment of razorpay
 const verifyRazorpay = async (req, res) => {
     try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+        
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Missing payment verification details" 
+            });
+        }
 
-        const {razorpay_order_id} = req.body;
         const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
 
-        console.log(orderInfo);
-        if(orderInfo.status === "paid") {
-            await appointmentModel.findByIdAndUpdate(orderInfo.receipt, {payment: true});
-            res.json({success: true, message: "Payment Successful"});
+        if (!orderInfo) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Order not found" 
+            });
+        }
+
+        if (orderInfo.status === "paid") {
+            await appointmentModel.findByIdAndUpdate(
+                orderInfo.receipt, 
+                { 
+                    payment: true,
+                    paymentId: razorpay_payment_id,
+                    paymentDate: new Date()
+                }
+            );
+            res.json({ success: true, message: "Payment Successful" });
         } else {
-            res.json({success: false, message: "Payment failed"})
+            res.status(400).json({ 
+                success: false, 
+                message: "Payment not completed" 
+            });
         }
         
     } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
+        console.error("Payment verification error:", error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || "Payment verification failed" 
+        });
     }
 }
 
