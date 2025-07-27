@@ -10,9 +10,6 @@ import razorpay from "razorpay";
 // Initialize Razorpay instance with error handling
 let razorpayInstance;
 try {
-    console.log("=== Initializing Razorpay ===");
-    console.log("Key ID:", process.env.RAZORPAY_KEY_ID);
-    console.log("Key Secret present:", !!process.env.RAZORPAY_KEY_SECRET);
     
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
         throw new Error("Razorpay credentials not found in environment variables");
