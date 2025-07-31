@@ -7,9 +7,13 @@
     "backend",
     "admin"
   ],
+
   "scripts": {
-    "start": "cd frontend && npm start",
-    "build": "cd frontend && npm run build",
-    "install": "cd frontend && npm install"
-  }
+  "start": "cd frontend && npm start",
+  "build": "cd frontend && npm run build",
+  "setup:frontend": "cd frontend && npm install",
+  "setup:backend": "cd backend && npm install",
+  "setup:admin": "cd admin && npm install"
+}
+
 } 
