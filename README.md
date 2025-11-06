@@ -1,4 +1,5 @@
-<img width="2880" height="1531" alt="Screenshot (144)" src="https://github.com/user-attachments/assets/1667306a-ac80-45d6-8b0a-a46187f9228d" />
+<img width="2880" height="1531" alt="Screenshot (144)" src="https://github.com/user-attachments/assets/1ed8ba83-b802-4e44-a210-044136b5582c" />
+
 
 A full-stack web application built using the MERN stack that simplifies the process of booking, managing, and overseeing doctor appointments. This app is designed with three levels of user access, providing customized functionalities for patients, doctors, and administrators.
 
