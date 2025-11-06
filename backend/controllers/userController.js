@@ -175,7 +175,7 @@ const bookAppointment = async (req, res) => {
 
         let slots_booked = docData.slots_booked;
 
-        //checking sor slots availability
+        //checking for slots availability
         if (slots_booked[slotDate]) {
             if (slots_booked[slotDate].includes(slotTime)) {
                 return res.json({ success: false, message: "Slot not available" });
