@@ -39,7 +39,8 @@ const AppContextProvider = (props) => {
         try {
             const {data} = await axios.get(
                 backendUrl + '/api/user/get-profile', 
-                {headers: {Authorization: `Bearer ${token}`}}
+                {headers: {Authorization: `Bearer ${token}`}} /* “Bearer” means “the person (or app) who bears this token is allowed access.”
+                                                                The token is like a digital key that proves the user is logged in or verified. */
             );
             
             if (data.success) {
